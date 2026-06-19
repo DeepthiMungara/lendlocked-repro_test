@@ -1,0 +1,58 @@
+name: Reproduce LendLocked (PETS 2026)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  reproduce:
+    # The artifact's own prerequisite check greps `sw_vers` for "15.*" (macOS Sequoia).
+    # "macos-latest" currently resolves to macOS 26 (Tahoe) on GitHub-hosted runners,
+    # which would fail that check immediately — pin explicitly to macos-15.
+    runs-on: macos-15
+    timeout-minutes: 120
+
+    steps:
+      - name: Show runner OS version
+        run: sw_vers
+
+      - name: Install git-lfs (prerequisite)
+        run: |
+          brew install git-lfs
+          git lfs install
+          git lfs version
+
+      - name: Install conda (prerequisite)
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-update-conda: true
+
+      - name: Confirm prerequisites
+        shell: bash -el {0}
+        run: |
+          command -v git && git --version
+          command -v git-lfs && git lfs version
+          command -v conda && conda --version
+
+      - name: Fetch one-click reproduction script
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/Boyaw/lendlocked/main/one-click-repro.sh -o one-click-repro.sh
+          chmod +x one-click-repro.sh
+
+      - name: Run reproduction
+        shell: bash -el {0}
+        env:
+          # The script sleeps COOLDOWN seconds (default 60) between each benchmark
+          # to avoid thermal throttling on a real laptop. CI VMs are torn down right
+          # after the job anyway, so a shorter cooldown just saves time (there are
+          # 16 cooldowns total, so default=60s adds ~16 minutes of pure sleep).
+          COOLDOWN: "15"
+        run: bash one-click-repro.sh
+
+      - name: Upload benchmark JSON results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lendlocked-results
+          path: |
+            lendlocked/exp-borrow-depth-*/*.json
+          if-no-files-found: warn
