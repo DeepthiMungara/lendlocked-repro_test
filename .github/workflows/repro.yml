@@ -46,6 +46,7 @@ jobs:
           # after the job anyway, so a shorter cooldown just saves time (there are
           # 16 cooldowns total, so default=60s adds ~16 minutes of pure sleep).
           COOLDOWN: "15"
+          PYTHONPATH: ""
         run: bash one-click-repro.sh
 
       - name: Upload benchmark JSON results
